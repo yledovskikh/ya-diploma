@@ -11,10 +11,11 @@ import (
 	"github.com/go-chi/httplog"
 	"github.com/go-chi/jwtauth/v5"
 	"github.com/rs/zerolog/log"
+	"github.com/yledovskikh/ya-diploma/internal/config"
+	"github.com/yledovskikh/ya-diploma/internal/db"
+	"github.com/yledovskikh/ya-diploma/internal/handlers"
 	"github.com/yledovskikh/ya-diploma/internal/handlers/balance"
-	"github.com/yledovskikh/ya-diploma/internal/handlers/login"
 	"github.com/yledovskikh/ya-diploma/internal/handlers/orders"
-	"github.com/yledovskikh/ya-diploma/internal/handlers/register"
 )
 
 var tokenAuth *jwtauth.JWTAuth
@@ -30,9 +31,20 @@ func init() {
 
 func Exec(ctx context.Context, wg *sync.WaitGroup) {
 	// Logger
+
+	cfg := config.GetConfig()
+	//test
+	log.Debug().Msgf("config - %i", cfg)
+
 	logger := httplog.NewLogger("httplog-example", httplog.Options{
 		JSON: true,
 	})
+
+	d, err := db.New(cfg.DatabaseURI, ctx)
+	if err != nil {
+		log.Fatal().Err(err).Msg("")
+	}
+	h := handlers.New(d)
 
 	// Service
 	r := chi.NewRouter()
@@ -49,11 +61,11 @@ func Exec(ctx context.Context, wg *sync.WaitGroup) {
 	})
 
 	r.Group(func(r chi.Router) {
-		r.Post("/register", register.PostRegister)
-		r.Post("/login", login.PostLogin)
+		r.Post("/register", h.PostRegister)
+		r.Post("/login", h.PostLogin)
 	})
 	srv := &http.Server{
-		Addr:    ":5555",
+		Addr:    cfg.RunAddress,
 		Handler: r,
 	}
 

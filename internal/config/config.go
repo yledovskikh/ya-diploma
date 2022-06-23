@@ -9,7 +9,7 @@ import (
 
 const (
 	runAddressDefault    = ":8081"
-	databaseURIDefault   = "postgres://gophermart:Passw0rd@localhost:5432/database_name"
+	databaseURIDefault   = "postgres://gophermart:Passw0rd@localhost:5432/gophermart"
 	accrualSystemAddress = "localhost:8080"
 )
 

@@ -8,15 +8,11 @@ import (
 	"syscall"
 
 	"github.com/rs/zerolog/log"
-	"github.com/yledovskikh/ya-diploma/internal/config"
 	"github.com/yledovskikh/ya-diploma/internal/server"
 )
 
 func main() {
 	ctx, cancel := context.WithCancel(context.Background())
-	cfg := config.GetConfig()
-	//test
-	log.Debug().Msgf("config - %i", cfg)
 	wg := sync.WaitGroup{}
 	wg.Add(1)
 	go server.Exec(ctx, &wg)
