@@ -11,7 +11,7 @@ import (
 	"net/http"
 
 	"github.com/go-chi/jwtauth/v5"
-	"github.com/golang-jwt/jwt"
+	"github.com/golang-jwt/jwt/v4"
 	"github.com/rs/zerolog/log"
 	"github.com/yledovskikh/ya-diploma/internal/storage"
 )
@@ -62,67 +62,31 @@ func (s Server) PostRegister(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		log.Error().Err(err).Msg("")
 		status, msg := storageErrToStatus(err)
-		//http.Error(w, msg, status)
 		errJSONResponse(msg, status, w)
 		return
-
-		//status := http.StatusConflict
-		//if errors.Is(err, storage.ErrInternalServerError) {
-		//	status = http.StatusInternalServerError
-		//}
-		//errJSONResponse(err, status, w)
-		//return
 	}
-
+	s.setCookie(w, u.Login)
 	response := storage.JSONResponse{Message: "User registered"}
 	err = json.NewEncoder(w).Encode(response)
 	if err != nil {
 		log.Error().Err(err)
 	}
-
-	//w.Write([]byte("Register"))
 }
 
-func (s Server) PostLogin(w http.ResponseWriter, r *http.Request) {
-	//- `200` — пользователь успешно аутентифицирован;
-	//- `400` — неверный формат запроса;
-	//- `401` — неверная пара логин/пароль;
-	//- `500` — внутренняя ошибка сервера.
-
-	var u storage.User
-	err := json.NewDecoder(r.Body).Decode(&u)
-	if err != nil {
-		log.Error().Err(err).Msg("")
-		errJSONResponse(err.Error(), http.StatusBadRequest, w)
-		return
-	}
-
-	err = s.storage.CheckUser(u)
-
-	if err != nil {
-
-		//}
-		//	status = http.StatusInternalServerError
-		//if errors.Is(err, storage.ErrInternalServerError) {
-		//status := http.StatusUnauthorized
-		status, msg := storageErrToStatus(err)
-		errJSONResponse(msg, status, w)
-		return
-	}
-
+func (s *Server) setCookie(w http.ResponseWriter, login string) {
 	expirationTime := time.Now().Add(30 * time.Minute)
 	signingKey := []byte(s.signingKey)
 
 	type Claim struct {
 		Login string `json:"login"`
-		jwt.StandardClaims
+		jwt.RegisteredClaims
 	}
 
 	// Create the Claims
 	claims := Claim{
-		u.Login,
-		jwt.StandardClaims{
-			ExpiresAt: expirationTime.Unix(),
+		login,
+		jwt.RegisteredClaims{
+			ExpiresAt: jwt.NewNumericDate(expirationTime),
 			Issuer:    "ya-practicum",
 		},
 	}
@@ -146,11 +110,36 @@ func (s Server) PostLogin(w http.ResponseWriter, r *http.Request) {
 		Expires: expirationTime,
 	})
 
+}
+
+func (s Server) PostLogin(w http.ResponseWriter, r *http.Request) {
+	//- `200` — пользователь успешно аутентифицирован;
+	//- `400` — неверный формат запроса;
+	//- `401` — неверная пара логин/пароль;
+	//- `500` — внутренняя ошибка сервера.
+
+	var u storage.User
+	err := json.NewDecoder(r.Body).Decode(&u)
+	if err != nil {
+		log.Error().Err(err).Msg("")
+		errJSONResponse(err.Error(), http.StatusBadRequest, w)
+		return
+	}
+
+	err = s.storage.CheckUser(u)
+
+	if err != nil {
+		status, msg := storageErrToStatus(err)
+		errJSONResponse(msg, status, w)
+		return
+	}
+	s.setCookie(w, u.Login)
 	response := storage.JSONResponse{Message: "User logged"}
 	err = json.NewEncoder(w).Encode(response)
 	if err != nil {
 		log.Error().Err(err)
 	}
+
 }
 
 func (s Server) PostOrders(w http.ResponseWriter, r *http.Request) {
@@ -189,7 +178,7 @@ func (s Server) PostOrders(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	w.WriteHeader(http.StatusAccepted)
-	w.Write([]byte(fmt.Sprintf("protected area - Orders. hi %v, order is %d, vaild - %t", claims["login"], order, check)))
+	w.Write([]byte(fmt.Sprintf("Order %d registered by user %s", order, claims["login"])))
 }
 
 func valid(number int) bool {
