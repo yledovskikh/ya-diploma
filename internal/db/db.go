@@ -26,9 +26,9 @@ func (d *DB) Close() {
 	d.Pool.Close()
 }
 
-func New(dbUrl string, ctx context.Context) (*DB, error) {
+func New(dbURL string, ctx context.Context) (*DB, error) {
 
-	config, err := pgxpool.ParseConfig(dbUrl)
+	config, err := pgxpool.ParseConfig(dbURL)
 	if err != nil {
 		return &DB{}, err
 	}
@@ -44,7 +44,7 @@ func New(dbUrl string, ctx context.Context) (*DB, error) {
 
 	dbPool, err := pgxpool.ConnectConfig(context.Background(), config)
 
-	//dbPool, err := pgxpool.Connect(context.Background(), dbUrl)
+	//dbPool, err := pgxpool.Connect(context.Background(), dbURL)
 
 	if err != nil {
 		return &DB{}, err
@@ -163,8 +163,8 @@ func (d *DB) SetOrder(login string, order int) error {
 
 	instTime := time.Now()
 	//_, err = d.Pool.Exec(d.ctx, sql, u.Login, hp, instTime, instTime)
-	iSql := "INSERT INTO orders (id, user_id, status, accrual,created_at,updated_at) VALUES($1, $2,$3,$4,$5,$6);"
-	_, err = d.Pool.Exec(d.ctx, iSql, order, userID, "new", 0, instTime, instTime)
+	sql = "INSERT INTO orders (id, user_id, status, accrual,created_at,updated_at) VALUES($1, $2,$3,$4,$5,$6);"
+	_, err = d.Pool.Exec(d.ctx, sql, order, userID, "new", 0, instTime, instTime)
 	if err != nil {
 		log.Error().Err(err).Msg("")
 		var pgErr *pgconn.PgError
@@ -178,7 +178,7 @@ func (d *DB) SetOrder(login string, order int) error {
 	return nil
 }
 
-func (d *DB) handleErrLoadOrder(userId, order int) error {
+func (d *DB) handleErrLoadOrder(userID, order int) error {
 	sql := "select user_id from orders where id=$1;"
 	var userOrderID int
 	err := d.Pool.QueryRow(d.ctx, sql, order).Scan(&userOrderID)
@@ -186,8 +186,8 @@ func (d *DB) handleErrLoadOrder(userId, order int) error {
 		log.Error().Err(err).Msg("")
 		return storage.ErrInternalServerError
 	}
-	if userId != userOrderID {
-		log.Debug().Msgf("userId != userOrderID : %d != %d", userId, userOrderID)
+	if userID != userOrderID {
+		log.Debug().Msgf("userID != userOrderID : %d != %d", userID, userOrderID)
 		return storage.ErrOrderLoadedAnotherUser
 	}
 	return storage.ErrUserAlreadyLoadedOrder

@@ -18,7 +18,7 @@ func main() {
 	wg := sync.WaitGroup{}
 	wg.Add(1)
 	go server.Exec(ctx, &wg)
-	done := make(chan os.Signal)
+	done := make(chan os.Signal, 1)
 	signal.Notify(done, syscall.SIGQUIT, syscall.SIGINT, syscall.SIGTERM)
 	<-done
 	cancel()

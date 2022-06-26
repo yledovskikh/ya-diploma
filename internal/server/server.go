@@ -45,8 +45,6 @@ func Exec(ctx context.Context, wg *sync.WaitGroup) {
 	tokenAuth = jwtauth.New("HS256", []byte(signingKey), nil)
 	//
 	////test
-	log.Debug().Msgf("config - %i", cfg)
-
 	logger := httplog.NewLogger("ya-practicum", httplog.Options{
 		JSON:     true,
 		LogLevel: "Debug",

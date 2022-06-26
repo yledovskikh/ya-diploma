@@ -60,6 +60,7 @@ func (s Server) PostRegister(w http.ResponseWriter, r *http.Request) {
 	err = s.storage.NewUser(u)
 
 	if err != nil {
+		log.Error().Err(err).Msg("")
 		status, msg := storageErrToStatus(err)
 		//http.Error(w, msg, status)
 		errJSONResponse(msg, status, w)
@@ -73,9 +74,6 @@ func (s Server) PostRegister(w http.ResponseWriter, r *http.Request) {
 		//return
 	}
 
-	if err != nil {
-		log.Error().Err(err).Msg("")
-	}
 	response := storage.JSONResponse{Message: "User registered"}
 	err = json.NewEncoder(w).Encode(response)
 	if err != nil {
