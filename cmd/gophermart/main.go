@@ -7,12 +7,14 @@ import (
 	"sync"
 	"syscall"
 
+	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 	"github.com/yledovskikh/ya-diploma/internal/server"
 )
 
 func main() {
 	ctx, cancel := context.WithCancel(context.Background())
+	zerolog.SetGlobalLevel(zerolog.DebugLevel)
 	wg := sync.WaitGroup{}
 	wg.Add(1)
 	go server.Exec(ctx, &wg)

@@ -2,6 +2,8 @@ package server
 
 import (
 	"context"
+	"crypto/rand"
+	"encoding/hex"
 	"fmt"
 	"net/http"
 	"sync"
@@ -14,55 +16,70 @@ import (
 	"github.com/yledovskikh/ya-diploma/internal/config"
 	"github.com/yledovskikh/ya-diploma/internal/db"
 	"github.com/yledovskikh/ya-diploma/internal/handlers"
-	"github.com/yledovskikh/ya-diploma/internal/handlers/balance"
-	"github.com/yledovskikh/ya-diploma/internal/handlers/orders"
 )
 
 var tokenAuth *jwtauth.JWTAuth
 
-func init() {
-	tokenAuth = jwtauth.New("HS256", []byte("secret"), nil)
+/*func init() {
+	tokenAuth = jwtauth.New("HS256", []byte("sf1o1i2rb2n2ILKJBaavkugsp23"), nil)
 
 	// For debugging/example purposes, we generate and print
 	// a sample jwt token with claims `user_id:123` here:
 	_, tokenString, _ := tokenAuth.Encode(map[string]interface{}{"user_id": 123})
 	fmt.Printf("DEBUG: a sample jwt is %s\n\n", tokenString)
-}
+}*/
 
 func Exec(ctx context.Context, wg *sync.WaitGroup) {
 	// Logger
 
 	cfg := config.GetConfig()
-	//test
+
+	b := make([]byte, 16)
+	_, err := rand.Read(b)
+	if err != nil {
+		fmt.Printf("error: %v\n", err)
+		return
+	}
+	signingKey := hex.EncodeToString(b)
+	log.Debug().Msg(signingKey)
+	tokenAuth = jwtauth.New("HS256", []byte(signingKey), nil)
+	//
+	////test
 	log.Debug().Msgf("config - %i", cfg)
 
-	logger := httplog.NewLogger("httplog-example", httplog.Options{
-		JSON: true,
+	logger := httplog.NewLogger("ya-practicum", httplog.Options{
+		JSON:     true,
+		LogLevel: "Debug",
+		Concise:  true,
 	})
 
 	d, err := db.New(cfg.DatabaseURI, ctx)
 	if err != nil {
 		log.Fatal().Err(err).Msg("")
 	}
-	h := handlers.New(d)
+	h := handlers.New(d, signingKey)
 
 	// Service
 	r := chi.NewRouter()
+	//r.Use(middleware.RequestID)
+	//r.Use(middleware.RealIP)
 	r.Use(httplog.RequestLogger(logger))
-	r.Use(middleware.Heartbeat("/ping"))
+	r.Use(middleware.Recoverer)
+	//r.Use(middleware.Heartbeat("/ping"))
 
 	// Protected routes
 	r.Group(func(r chi.Router) {
 		// Seek, verify and validate JWT tokens
 		r.Use(jwtauth.Verifier(tokenAuth))
 		r.Use(jwtauth.Authenticator)
-		r.Get("/orders", orders.GetOrders)
-		r.Get("/balance", balance.GetBalance)
+		r.Post("/api/user/orders", h.PostOrders)
+		//r.Get("/orders", orders.GetOrders)
+		//r.Get("/balance", balance.GetBalance)
 	})
 
 	r.Group(func(r chi.Router) {
-		r.Post("/register", h.PostRegister)
-		r.Post("/login", h.PostLogin)
+		r.Post("/api/user/register", h.PostRegister)
+		r.Post("/api/user/login", h.PostLogin)
 	})
 	srv := &http.Server{
 		Addr:    cfg.RunAddress,
