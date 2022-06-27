@@ -77,8 +77,8 @@ func dbMigrate(d *pgxpool.Pool, ctx context.Context) error {
 	execSQL := []string{
 		"CREATE SEQUENCE IF NOT EXISTS users_serial START 1",
 		//"CREATE SEQUENCE IF NOT EXISTS order_serial START 1",
-		"CREATE TABLE IF NOT EXISTS users(id integer PRIMARY KEY DEFAULT nextval('users_serial'), login varchar(255) NOT NULL, password varchar(255) NOT NULL, create_at date , update_at date ,  CONSTRAINT users_unique UNIQUE (login))",
-		"CREATE TABLE IF NOT EXISTS orders(id bigint not null primary key, user_id integer not null, status varchar(19) not null, accrual real not null, created_at date not null, updated_at date not null);",
+		"CREATE TABLE IF NOT EXISTS users(id integer PRIMARY KEY DEFAULT nextval('users_serial'), login varchar(255) NOT NULL, password varchar(255) NOT NULL, create_at timestamp , update_at timestamp ,  CONSTRAINT users_unique UNIQUE (login))",
+		"CREATE TABLE IF NOT EXISTS orders(id bigint not null primary key, user_id integer not null, status varchar(19) not null, accrual real not null, created_at timestamp not null, updated_at timestamp not null);",
 	}
 
 	for _, sql := range execSQL {
@@ -91,31 +91,43 @@ func dbMigrate(d *pgxpool.Pool, ctx context.Context) error {
 	return nil
 }
 
-func (d *DB) NewUser(u storage.User) error {
+func (d *DB) NewUser(u storage.User) (int, error) {
 	//tx, err := d.Pool.Begin(d.ctx)
 	//if err != nil {
 	//	return err
 	//}
-	sql := "insert into users (login, password, create_at,update_at) values ($1,$2,$3,$4);"
+	sql := "insert into users (login, password, create_at,update_at) values ($1,$2,$3,$4) returning id;"
 
 	// Rollback is safe to call even if the tx is already closed, so if
 	// the tx commits successfully, this is a no-op
 	hp, err := HashPassword(u.Password)
 	if err != nil {
 		log.Error().Err(err).Msg("")
-		return storage.ErrInternalServerError
+		return 0, storage.ErrInternalServerError
 	}
 	//defer tx.Rollback(d.ctx)
 	instTime := time.Now()
-	_, err = d.Pool.Exec(d.ctx, sql, u.Login, hp, instTime, instTime)
+	var userID int
+	err = d.Pool.QueryRow(d.ctx, sql, u.Login, hp, instTime, instTime).Scan(&userID)
+
+	//if err != nil {
+	//	log.Fatal(err)
+	//}
+
+	//defer stmt.Close()var studentID int
+	//err = stmt.QueryRow("Lee", "Provoost").Scan(&studentId)
+	//if err != nil {
+	//	log.Fatal(err)
+	//}
+	//_, err = d.Pool.Exec(d.ctx, sql, u.Login, hp, instTime, instTime)
 	if err != nil {
 		log.Error().Err(err).Msg("")
 		var pgErr *pgconn.PgError
 		if errors.As(err, &pgErr) {
 			if pgErr.Code == "23505" {
-				return storage.ErrLoginAlreadyExist
+				return 0, storage.ErrLoginAlreadyExist
 			}
-			return storage.ErrInternalServerError
+			return 0, storage.ErrInternalServerError
 		}
 	}
 	//err = tx.Commit(d.ctx)
@@ -123,7 +135,7 @@ func (d *DB) NewUser(u storage.User) error {
 	//	log.Error().Err(err).Msg("")
 	//	return storage.ErrInternalServerError
 	//}
-	return nil
+	return userID, nil
 
 }
 
@@ -135,42 +147,46 @@ func HashPassword(password string) ([]byte, error) {
 	return hp, nil
 }
 
-func (d *DB) CheckUser(u storage.User) error {
-	sql := "select password from users where login=$1;"
-	var password string
-	err := d.Pool.QueryRow(d.ctx, sql, u.Login).Scan(&password)
+func (d *DB) CheckUser(u storage.User) (int, error) {
+	sql := "select id, password from users where login=$1;"
+	var (
+		userID   int
+		password string
+	)
+
+	err := d.Pool.QueryRow(d.ctx, sql, u.Login).Scan(&userID, &password)
 	if err != nil {
 		log.Error().Err(err).Msg("")
 		if err == pgx.ErrNoRows {
-			return storage.ErrUnauthorized
+			return 0, storage.ErrUnauthorized
 		}
-		return storage.ErrInternalServerError
+		return 0, storage.ErrInternalServerError
 	}
 	err = bcrypt.CompareHashAndPassword([]byte(password), []byte(u.Password))
 	if err != nil {
-		return storage.ErrUnauthorized
+		return 0, storage.ErrUnauthorized
 	}
-	return nil
+	return userID, nil
 }
-func (d *DB) SetOrder(login string, order int) error {
-	sql := "select id from users where login=$1;"
-	var userID int
-	err := d.Pool.QueryRow(d.ctx, sql, login).Scan(&userID)
-	if err != nil {
-		log.Error().Err(err).Msg("")
-		return storage.ErrInternalServerError
-	}
+func (d *DB) SetOrder(userID int, orderNumber int) error {
+	//sql := "select id from users where login=$1;"
+	//var userID int
+	//err := d.Pool.QueryRow(d.ctx, sql, login).Scan(&userID)
+	//if err != nil {
+	//	log.Error().Err(err).Msg("")
+	//	return storage.ErrInternalServerError
+	//}
 
 	instTime := time.Now()
 	//_, err = d.Pool.Exec(d.ctx, sql, u.Login, hp, instTime, instTime)
-	sql = "INSERT INTO orders (id, user_id, status, accrual,created_at,updated_at) VALUES($1, $2,$3,$4,$5,$6);"
-	_, err = d.Pool.Exec(d.ctx, sql, order, userID, "new", 0, instTime, instTime)
+	sql := "INSERT INTO orders (id, user_id, status, accrual,created_at,updated_at) VALUES($1, $2,$3,$4,$5,$6);"
+	_, err := d.Pool.Exec(d.ctx, sql, orderNumber, userID, "new", 0, instTime, instTime)
 	if err != nil {
 		log.Error().Err(err).Msg("")
 		var pgErr *pgconn.PgError
 		if errors.As(err, &pgErr) {
 			if pgErr.Code == "23505" {
-				return d.handleErrLoadOrder(userID, order)
+				return d.handleErrLoadOrder(userID, orderNumber)
 			}
 		}
 		return storage.ErrInternalServerError
@@ -178,10 +194,10 @@ func (d *DB) SetOrder(login string, order int) error {
 	return nil
 }
 
-func (d *DB) handleErrLoadOrder(userID, order int) error {
+func (d *DB) handleErrLoadOrder(userID, orderNumber int) error {
 	sql := "select user_id from orders where id=$1;"
 	var userOrderID int
-	err := d.Pool.QueryRow(d.ctx, sql, order).Scan(&userOrderID)
+	err := d.Pool.QueryRow(d.ctx, sql, orderNumber).Scan(&userOrderID)
 	if err != nil {
 		log.Error().Err(err).Msg("")
 		return storage.ErrInternalServerError
@@ -191,4 +207,40 @@ func (d *DB) handleErrLoadOrder(userID, order int) error {
 		return storage.ErrOrderLoadedAnotherUser
 	}
 	return storage.ErrUserAlreadyLoadedOrder
+}
+
+func (d *DB) GetOrders(userID int) ([]storage.Order, error) {
+	//var userOrderID int
+	//err := d.Pool.QueryRow(d.ctx, sql, order).Scan(&userOrderID)
+	//if err != nil {
+	//	log.Error().Err(err).Msg("")
+	//	return storage.ErrInternalServerError
+	//}
+
+	sql := "select id,accrual,status,created_at,updated_at from orders where user_id=$1 order by created_at;"
+	rows, err := d.Pool.Query(d.ctx, sql, userID)
+	if err != nil {
+		log.Error().Err(err).Msg("")
+		return nil, storage.ErrInternalServerError
+	}
+	defer rows.Close()
+	orders := make([]storage.Order, 0)
+	for rows.Next() {
+		var id int
+		var accrual float32
+		var status string
+		var createdAt, updatedAt time.Time
+		if err = rows.Scan(&id, &accrual, &status, &createdAt, &updatedAt); err != nil {
+			return nil, storage.ErrInternalServerError
+		}
+		order := storage.Order{Id: id, Status: status, Accrual: accrual, CreateAt: createdAt}
+		orders = append(orders, order)
+	}
+
+	if err = rows.Err(); err != nil {
+		log.Error().Err(err).Msg("")
+		return nil, storage.ErrInternalServerError
+	}
+
+	return orders, nil
 }

@@ -71,7 +71,7 @@ func Exec(ctx context.Context, wg *sync.WaitGroup) {
 		r.Use(jwtauth.Verifier(tokenAuth))
 		r.Use(jwtauth.Authenticator)
 		r.Post("/api/user/orders", h.PostOrders)
-		//r.Get("/orders", orders.GetOrders)
+		r.Get("/api/user/orders", h.GetOrders)
 		//r.Get("/balance", balance.GetBalance)
 	})
 
