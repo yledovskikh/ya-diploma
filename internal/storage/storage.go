@@ -38,7 +38,7 @@ type User struct {
 //            "uploaded_at": "2020-12-10T15:15:45+03:00"
 
 type Order struct {
-	ID       int     `json:"number"`
+	ID       string  `json:"number"`
 	Status   string  `json:"status"`
 	Accrual  float32 `json:"accrual"`
 	CreateAt string  `json:"uploaded_at"`

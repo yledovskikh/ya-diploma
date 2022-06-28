@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strconv"
 	"time"
 
 	"golang.org/x/crypto/bcrypt"
@@ -234,7 +235,7 @@ func (d *DB) GetOrders(userID int) ([]storage.Order, error) {
 			return nil, storage.ErrInternalServerError
 		}
 
-		order := storage.Order{ID: id, Status: status, Accrual: accrual, CreateAt: createdAt.Format(time.RFC3339)}
+		order := storage.Order{ID: strconv.Itoa(id), Status: status, Accrual: accrual, CreateAt: createdAt.Format(time.RFC3339)}
 		orders = append(orders, order)
 	}
 
