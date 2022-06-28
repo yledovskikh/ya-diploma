@@ -180,7 +180,7 @@ func (d *DB) SetOrder(userID int, orderNumber int) error {
 	instTime := time.Now()
 	//_, err = d.Pool.Exec(d.ctx, sql, u.Login, hp, instTime, instTime)
 	sql := "INSERT INTO orders (id, user_id, status, accrual,created_at,updated_at) VALUES($1, $2,$3,$4,$5,$6);"
-	_, err := d.Pool.Exec(d.ctx, sql, orderNumber, userID, "new", 0, instTime, instTime)
+	_, err := d.Pool.Exec(d.ctx, sql, orderNumber, userID, "NEW", 0, instTime, instTime)
 	if err != nil {
 		log.Error().Err(err).Msg("")
 		var pgErr *pgconn.PgError
@@ -233,7 +233,7 @@ func (d *DB) GetOrders(userID int) ([]storage.Order, error) {
 		if err = rows.Scan(&id, &accrual, &status, &createdAt, &updatedAt); err != nil {
 			return nil, storage.ErrInternalServerError
 		}
-		order := storage.Order{Id: id, Status: status, Accrual: accrual, CreateAt: createdAt}
+		order := storage.Order{ID: id, Status: status, Accrual: accrual, CreateAt: createdAt}
 		orders = append(orders, order)
 	}
 

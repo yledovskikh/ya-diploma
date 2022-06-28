@@ -44,14 +44,14 @@ func (s Server) PostRegister(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	u.Id, err = s.storage.NewUser(u)
+	u.ID, err = s.storage.NewUser(u)
 	if err != nil {
 		log.Error().Err(err).Msg("")
 		status, msg := storage.StorageErrToStatus(err)
 		helpers.ErrJSONResponse(msg, status, w)
 		return
 	}
-	helpers.SetCookie(w, u.Id, u.Login, s.signingKey)
+	helpers.SetCookie(w, u.ID, u.Login, s.signingKey)
 	response := storage.JSONResponse{Message: "User registered"}
 	err = json.NewEncoder(w).Encode(response)
 	if err != nil {
@@ -73,14 +73,14 @@ func (s Server) PostLogin(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	u.Id, err = s.storage.CheckUser(u)
+	u.ID, err = s.storage.CheckUser(u)
 
 	if err != nil {
 		status, msg := storage.StorageErrToStatus(err)
 		helpers.ErrJSONResponse(msg, status, w)
 		return
 	}
-	helpers.SetCookie(w, u.Id, u.Login, s.signingKey)
+	helpers.SetCookie(w, u.ID, u.Login, s.signingKey)
 	response := storage.JSONResponse{Message: "User logged"}
 	err = json.NewEncoder(w).Encode(response)
 	if err != nil {

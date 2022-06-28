@@ -25,7 +25,7 @@ var (
 )
 
 type User struct {
-	Id       int
+	ID       int
 	Login    string
 	Password string
 	CreateAt time.Time
@@ -38,7 +38,7 @@ type User struct {
 //            "uploaded_at": "2020-12-10T15:15:45+03:00"
 
 type Order struct {
-	Id       int       `json:"number"`
+	ID       int       `json:"number"`
 	Status   string    `json:"status"`
 	Accrual  float32   `json:"accrual"`
 	CreateAt time.Time `json:"uploaded_at"`
