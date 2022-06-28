@@ -233,7 +233,8 @@ func (d *DB) GetOrders(userID int) ([]storage.Order, error) {
 		if err = rows.Scan(&id, &accrual, &status, &createdAt, &updatedAt); err != nil {
 			return nil, storage.ErrInternalServerError
 		}
-		order := storage.Order{ID: id, Status: status, Accrual: accrual, CreateAt: createdAt}
+
+		order := storage.Order{ID: id, Status: status, Accrual: accrual, CreateAt: createdAt.Format(time.RFC3339)}
 		orders = append(orders, order)
 	}
 
