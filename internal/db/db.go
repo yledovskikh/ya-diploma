@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"strconv"
 	"time"
 
 	"golang.org/x/crypto/bcrypt"
@@ -63,7 +62,7 @@ func New(dbURL string, ctx context.Context) (*DB, error) {
 	return &DB{dbPool, ctx}, nil
 }
 
-func (d DB) PingDB() error {
+func (d *DB) PingDB() error {
 
 	ctx, cancel := context.WithTimeout(d.ctx, 1*time.Second)
 	defer cancel()
@@ -79,7 +78,7 @@ func dbMigrate(d *pgxpool.Pool, ctx context.Context) error {
 		"CREATE SEQUENCE IF NOT EXISTS users_serial START 1",
 		//"CREATE SEQUENCE IF NOT EXISTS order_serial START 1",
 		"CREATE TABLE IF NOT EXISTS users(id integer PRIMARY KEY DEFAULT nextval('users_serial'), login varchar(255) NOT NULL, password varchar(255) NOT NULL, create_at timestamp , update_at timestamp ,  CONSTRAINT users_unique UNIQUE (login))",
-		"CREATE TABLE IF NOT EXISTS orders(id bigint not null primary key, user_id integer not null, status varchar(19) not null, accrual real not null, created_at timestamp not null, updated_at timestamp not null);",
+		"CREATE TABLE IF NOT EXISTS orders(id varchar(255) not null primary key, user_id integer not null, status varchar(19) not null, accrual real not null, created_at timestamp not null, updated_at timestamp not null);",
 	}
 
 	for _, sql := range execSQL {
@@ -111,16 +110,6 @@ func (d *DB) NewUser(u storage.User) (int, error) {
 	var userID int
 	err = d.Pool.QueryRow(d.ctx, sql, u.Login, hp, instTime, instTime).Scan(&userID)
 
-	//if err != nil {
-	//	log.Fatal(err)
-	//}
-
-	//defer stmt.Close()var studentID int
-	//err = stmt.QueryRow("Lee", "Provoost").Scan(&studentId)
-	//if err != nil {
-	//	log.Fatal(err)
-	//}
-	//_, err = d.Pool.Exec(d.ctx, sql, u.Login, hp, instTime, instTime)
 	if err != nil {
 		log.Error().Err(err).Msg("")
 		var pgErr *pgconn.PgError
@@ -131,11 +120,6 @@ func (d *DB) NewUser(u storage.User) (int, error) {
 			return 0, storage.ErrInternalServerError
 		}
 	}
-	//err = tx.Commit(d.ctx)
-	//if err != nil {
-	//	log.Error().Err(err).Msg("")
-	//	return storage.ErrInternalServerError
-	//}
 	return userID, nil
 
 }
@@ -169,17 +153,22 @@ func (d *DB) CheckUser(u storage.User) (int, error) {
 	}
 	return userID, nil
 }
-func (d *DB) SetOrder(userID int, orderNumber int) error {
-	//sql := "select id from users where login=$1;"
-	//var userID int
-	//err := d.Pool.QueryRow(d.ctx, sql, login).Scan(&userID)
-	//if err != nil {
-	//	log.Error().Err(err).Msg("")
-	//	return storage.ErrInternalServerError
-	//}
+
+func (d *DB) UpdateStatusOrder(order storage.OrderAccrual) error {
 
 	instTime := time.Now()
-	//_, err = d.Pool.Exec(d.ctx, sql, u.Login, hp, instTime, instTime)
+	sql := "update orders set status=$1, accrual=$2, updated_at = $3 where id=$4;"
+	_, err := d.Pool.Exec(d.ctx, sql, order.Status, order.Accrual, instTime, order.ID)
+	if err != nil {
+		log.Error().Err(err).Msg("")
+		return storage.ErrInternalServerError
+	}
+	return nil
+}
+
+func (d *DB) SetOrder(userID int, orderNumber string) error {
+
+	instTime := time.Now()
 	sql := "INSERT INTO orders (id, user_id, status, accrual,created_at,updated_at) VALUES($1, $2,$3,$4,$5,$6);"
 	_, err := d.Pool.Exec(d.ctx, sql, orderNumber, userID, "NEW", 0, instTime, instTime)
 	if err != nil {
@@ -195,7 +184,7 @@ func (d *DB) SetOrder(userID int, orderNumber int) error {
 	return nil
 }
 
-func (d *DB) handleErrLoadOrder(userID, orderNumber int) error {
+func (d *DB) handleErrLoadOrder(userID int, orderNumber string) error {
 	sql := "select user_id from orders where id=$1;"
 	var userOrderID int
 	err := d.Pool.QueryRow(d.ctx, sql, orderNumber).Scan(&userOrderID)
@@ -211,12 +200,6 @@ func (d *DB) handleErrLoadOrder(userID, orderNumber int) error {
 }
 
 func (d *DB) GetOrders(userID int) ([]storage.Order, error) {
-	//var userOrderID int
-	//err := d.Pool.QueryRow(d.ctx, sql, order).Scan(&userOrderID)
-	//if err != nil {
-	//	log.Error().Err(err).Msg("")
-	//	return storage.ErrInternalServerError
-	//}
 
 	sql := "select id,accrual,status,created_at,updated_at from orders where user_id=$1 order by created_at;"
 	rows, err := d.Pool.Query(d.ctx, sql, userID)
@@ -227,7 +210,7 @@ func (d *DB) GetOrders(userID int) ([]storage.Order, error) {
 	defer rows.Close()
 	orders := make([]storage.Order, 0)
 	for rows.Next() {
-		var id int
+		var id string
 		var accrual float32
 		var status string
 		var createdAt, updatedAt time.Time
@@ -235,10 +218,37 @@ func (d *DB) GetOrders(userID int) ([]storage.Order, error) {
 			return nil, storage.ErrInternalServerError
 		}
 
-		order := storage.Order{ID: strconv.Itoa(id), Status: status, Accrual: accrual, CreateAt: createdAt.Format(time.RFC3339)}
+		order := storage.Order{ID: id, Status: status, Accrual: accrual, CreateAt: createdAt.Format(time.RFC3339)}
 		orders = append(orders, order)
 	}
 
+	if err = rows.Err(); err != nil {
+		log.Error().Err(err).Msg("")
+		return nil, storage.ErrInternalServerError
+	}
+
+	return orders, nil
+}
+
+func (d *DB) GetProcOrders() (map[string]string, error) {
+
+	sql := "select id,status from orders where status in (upper($1),upper($2)) LIMIT 10;"
+	rows, err := d.Pool.Query(d.ctx, sql, "NEW", "PROCESSING")
+	if err != nil {
+		log.Error().Err(err).Msg("")
+		return nil, storage.ErrInternalServerError
+	}
+	defer rows.Close()
+	orders := make(map[string]string, 10)
+	for rows.Next() {
+		var id string
+		var status string
+		if err = rows.Scan(&id, &status); err != nil {
+			return nil, storage.ErrInternalServerError
+		}
+
+		orders[id] = status
+	}
 	if err = rows.Err(); err != nil {
 		log.Error().Err(err).Msg("")
 		return nil, storage.ErrInternalServerError

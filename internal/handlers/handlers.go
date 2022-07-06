@@ -104,11 +104,8 @@ func (s Server) PostOrders(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	orderNumber, err := strconv.Atoi(string(body))
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
-		return
-	}
+	orderNumber := string(body)
+
 	check := helpers.Valid(orderNumber)
 	_, claims, _ := jwtauth.FromContext(r.Context())
 	login := fmt.Sprintf("%v", claims["login"])

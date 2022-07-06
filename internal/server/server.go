@@ -16,6 +16,7 @@ import (
 	"github.com/yledovskikh/ya-diploma/internal/config"
 	"github.com/yledovskikh/ya-diploma/internal/db"
 	"github.com/yledovskikh/ya-diploma/internal/handlers"
+	"github.com/yledovskikh/ya-diploma/internal/processing"
 )
 
 var tokenAuth *jwtauth.JWTAuth
@@ -55,6 +56,7 @@ func Exec(ctx context.Context, wg *sync.WaitGroup) {
 	if err != nil {
 		log.Fatal().Err(err).Msg("")
 	}
+	go processing.Exec(d, ctx, wg)
 	h := handlers.New(d, signingKey)
 
 	// Service

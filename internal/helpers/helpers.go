@@ -3,6 +3,7 @@ package helpers
 import (
 	"encoding/json"
 	"net/http"
+	"strconv"
 	"time"
 
 	"github.com/golang-jwt/jwt/v4"
@@ -10,7 +11,12 @@ import (
 	"github.com/yledovskikh/ya-diploma/internal/storage"
 )
 
-func Valid(number int) bool {
+func Valid(order string) bool {
+	number, err := strconv.Atoi(order)
+	if err != nil {
+		log.Error().Err(err).Msg("")
+		return false
+	}
 	return (number%10+checksum(number/10))%10 == 0
 }
 

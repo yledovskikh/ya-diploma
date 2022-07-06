@@ -9,8 +9,10 @@ import (
 type Storage interface {
 	NewUser(User) (int, error)
 	CheckUser(User) (int, error)
-	SetOrder(int, int) error
+	SetOrder(int, string) error
 	GetOrders(int) ([]Order, error)
+	GetProcOrders() (map[string]string, error)
+	UpdateStatusOrder(OrderAccrual) error
 	PingDB() error
 	Close()
 }
@@ -39,6 +41,13 @@ type User struct {
 
 type Order struct {
 	ID       string  `json:"number"`
+	Status   string  `json:"status"`
+	Accrual  float32 `json:"accrual"`
+	CreateAt string  `json:"uploaded_at"`
+}
+
+type OrderAccrual struct {
+	ID       string  `json:"order"`
 	Status   string  `json:"status"`
 	Accrual  float32 `json:"accrual"`
 	CreateAt string  `json:"uploaded_at"`
