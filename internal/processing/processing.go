@@ -13,14 +13,15 @@ import (
 )
 
 type Process struct {
-	storage storage.Storage
+	storage              storage.Storage
+	accrualSystemAddress string
 }
 
-func Exec(s storage.Storage, ctx context.Context, wg *sync.WaitGroup) {
+func Exec(s storage.Storage, ctx context.Context, wg *sync.WaitGroup, accrualSystemAddress string) {
 	defer wg.Done()
 	//TODO изучить вопрос и возможно нужно что-то изменить с каналом
 	c := make(chan int)
-	p := Process{s}
+	p := Process{s, accrualSystemAddress}
 	close(c)
 	for {
 		select {
@@ -43,17 +44,17 @@ func (p *Process) procOrders() {
 		fmt.Println(order, status)
 		rs := p.checkStatusOrder(order)
 		if rs == http.StatusTooManyRequests {
-			time.Sleep(5 * time.Second)
+			time.Sleep(2 * time.Second)
 		}
 	}
-	time.Sleep(5 * time.Second)
+	//time.Sleep(5 * time.Second)
 	//c <- 0
 }
 
 func (p *Process) checkStatusOrder(o string) int {
 
 	//TODO get endpoint accrual system from config
-	url := "http://localhost:8080/api/orders/" + o
+	url := "http://" + p.accrualSystemAddress + "/api/orders/" + o
 
 	resp, err := http.Get(url)
 	log.Debug().Msgf("http get %s", url)

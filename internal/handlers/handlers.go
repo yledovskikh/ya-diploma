@@ -111,8 +111,8 @@ func (s Server) PostOrders(w http.ResponseWriter, r *http.Request) {
 	login := fmt.Sprintf("%v", claims["login"])
 
 	if !check {
-		log.Debug().Msgf("User %s tried to load not valid order %d", login, orderNumber)
-		msg := fmt.Sprintf("Order %d is not valid", orderNumber)
+		log.Debug().Msgf("User %s tried to load not valid order %s", login, orderNumber)
+		msg := fmt.Sprintf("Order %s is not valid", orderNumber)
 		http.Error(w, msg, http.StatusUnprocessableEntity)
 		return
 	}
@@ -129,7 +129,7 @@ func (s Server) PostOrders(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	w.WriteHeader(http.StatusAccepted)
-	_, err = w.Write([]byte(fmt.Sprintf("Order %d registered by user %s", orderNumber, claims["login"])))
+	_, err = w.Write([]byte(fmt.Sprintf("Order %s registered by user %s", orderNumber, claims["login"])))
 	if err != nil {
 		log.Error().Err(err)
 	}

@@ -56,7 +56,7 @@ func Exec(ctx context.Context, wg *sync.WaitGroup) {
 	if err != nil {
 		log.Fatal().Err(err).Msg("")
 	}
-	go processing.Exec(d, ctx, wg)
+	go processing.Exec(d, ctx, wg, cfg.AccrualSystemAddress)
 	h := handlers.New(d, signingKey)
 
 	// Service
