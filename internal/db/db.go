@@ -169,7 +169,7 @@ func (d *DB) UpdateStatusOrder(OrderAccrual storage.OrderAccrual) error {
 		return storage.ErrInternalServerError
 	}
 	if strings.ToUpper(OrderAccrual.Status) == "PROCESSED" {
-		sql = "update users set balance=balance+$1 updated_at = $2 where id=$3;"
+		sql = "update users set balance=balance+$1, updated_at = $2 where id=$3;"
 		_, err = tx.Exec(d.ctx, sql, OrderAccrual.Accrual, updateTime, OrderAccrual.ID)
 		if err != nil {
 			log.Error().Err(err).Msg("")
