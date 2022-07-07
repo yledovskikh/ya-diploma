@@ -73,6 +73,7 @@ func Exec(ctx context.Context, wg *sync.WaitGroup) {
 		r.Get("/api/user/orders", h.GetOrders)
 		r.Get("/api/user/balance", h.GetBalance)
 		r.Post("/api/user/balance/withdraw", h.PostWithdraw)
+		r.Get("/api/user/withdrawals", h.GetWithdrawals)
 	})
 
 	r.Group(func(r chi.Router) {

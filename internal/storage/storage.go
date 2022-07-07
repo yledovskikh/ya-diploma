@@ -15,6 +15,7 @@ type Storage interface {
 	GetProcOrders() (map[string]string, error)
 	UpdateStatusOrder(OrderAccrual) error
 	PostWithDraw(int, string, float32) error
+	GetWithdrawals(int) ([]Withdraw, error)
 	PingDB() error
 	Close()
 }
@@ -22,11 +23,12 @@ type Storage interface {
 var (
 	ErrBadRequest             = errors.New(`HTTP 400 Bad Request`)
 	ErrUnauthorized           = errors.New(`HTTP 401 Unauthorized`)
-	ErrInternalServerError    = errors.New(`HTTP 500 Internal Server Error`)
 	ErrLoginAlreadyExist      = errors.New(`HTTP 409 Login Already Exists`)
 	ErrOrderLoadedAnotherUser = errors.New(`HTTP 409 The Order Has Already Been Uploaded By Another User`)
 	ErrUserAlreadyLoadedOrder = errors.New(`HTTP 200 You Have Already Uploaded The Order`)
 	ErrNotEnoughFounds        = errors.New(`HTTP 402 Not Enough Founds`)
+	ErrNotWithdrawals         = errors.New(`HTTP 204 There Were No Withdrawals`)
+	ErrInternalServerError    = errors.New(`HTTP 500 Internal Server Error`)
 )
 
 type User struct {
@@ -38,8 +40,9 @@ type User struct {
 }
 
 type Withdraw struct {
-	Sum   float32 `json:"sum"`
-	Order string  `json:"order"`
+	Order       string  `json:"order"`
+	Sum         float32 `json:"sum"`
+	ProcessedAT string  `json:"processed_at"`
 }
 
 type Balance struct {
@@ -71,12 +74,15 @@ type JSONResponse struct {
 }
 
 func StorageErrToStatus(err error) (int, string) {
-	//	ErrBadRequest             = errors.New(`HTTP 400 Bad Request`)
-	//	ErrUnauthorized           = errors.New(`HTTP 401 Unauthorized`)
-	//	ErrInternalServerError    = errors.New(`HTTP 500 Internal Server Error`)
-	//	ErrLoginAlreadyExist      = errors.New(`HTTP 409 Login Already Exists`)
-	//	ErrUserAlreadyLoadedOrder = errors.New(`HTTP 200 You Have Already Uploaded The Order`)
-	//	ErrOrderLoadedAnotherUser = errors.New(`HTTP 409 The Order Has Already Been Uploaded By Another User`)
+
+	//ErrBadRequest             = errors.New(`HTTP 400 Bad Request`)
+	//ErrUnauthorized           = errors.New(`HTTP 401 Unauthorized`)
+	//ErrLoginAlreadyExist      = errors.New(`HTTP 409 Login Already Exists`)
+	//ErrOrderLoadedAnotherUser = errors.New(`HTTP 409 The Order Has Already Been Uploaded By Another User`)
+	//ErrUserAlreadyLoadedOrder = errors.New(`HTTP 200 You Have Already Uploaded The Order`)
+	//ErrNotEnoughFounds        = errors.New(`HTTP 402 Not Enough Founds`)
+	//ErrNotWithdrawals         = errors.New(`HTTP 204 There Were No Withdrawals`)
+	//ErrInternalServerError    = errors.New(`HTTP 500 Internal Server Error`)
 	switch err {
 	case ErrBadRequest:
 		return http.StatusBadRequest, ErrBadRequest.Error()
@@ -84,10 +90,14 @@ func StorageErrToStatus(err error) (int, string) {
 		return http.StatusUnauthorized, ErrUnauthorized.Error()
 	case ErrLoginAlreadyExist:
 		return http.StatusConflict, ErrLoginAlreadyExist.Error()
-	case ErrUserAlreadyLoadedOrder:
-		return http.StatusOK, ErrUserAlreadyLoadedOrder.Error()
 	case ErrOrderLoadedAnotherUser:
 		return http.StatusConflict, ErrOrderLoadedAnotherUser.Error()
+	case ErrUserAlreadyLoadedOrder:
+		return http.StatusOK, ErrUserAlreadyLoadedOrder.Error()
+	case ErrNotEnoughFounds:
+		return http.StatusPaymentRequired, ErrNotEnoughFounds.Error()
+	case ErrNotWithdrawals:
+		return http.StatusNoContent, ErrNotWithdrawals.Error()
 	default:
 		return http.StatusInternalServerError, ErrInternalServerError.Error()
 	}

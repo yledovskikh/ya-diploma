@@ -245,3 +245,26 @@ func (s *Server) PostWithdraw(w http.ResponseWriter, r *http.Request) {
 	}
 
 }
+
+func (s *Server) GetWithdrawals(w http.ResponseWriter, r *http.Request) {
+	_, claims, _ := jwtauth.FromContext(r.Context())
+	userID, err := strconv.Atoi(fmt.Sprintf("%v", claims["user_id"]))
+	if err != nil {
+		log.Error().Err(err)
+		helpers.ErrJSONResponse(err.Error(), http.StatusInternalServerError, w)
+		return
+	}
+	withdrawals, err := s.storage.GetWithdrawals(userID)
+	if err != nil {
+		log.Error().Err(err).Msg("")
+		status, msg := storage.StorageErrToStatus(err)
+		helpers.ErrJSONResponse(msg, status, w)
+		return
+	}
+	w.Header().Set("content-type", "application/json")
+	err = json.NewEncoder(w).Encode(withdrawals)
+	if err != nil {
+		log.Error().Err(err).Msg("")
+	}
+
+}

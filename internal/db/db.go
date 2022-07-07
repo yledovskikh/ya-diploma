@@ -324,3 +324,31 @@ func (d *DB) PostWithDraw(userID int, order string, sum float32) error {
 	}
 	return nil
 }
+
+func (d *DB) GetWithdrawals(userID int) ([]storage.Withdraw, error) {
+	sql := "select order_number,amount, updated_at from withdrawals where user_id=$1 order by updated_at;"
+	rows, err := d.Pool.Query(d.ctx, sql, userID)
+	if err != nil {
+		log.Error().Err(err).Msg("")
+		if err == pgx.ErrNoRows {
+			return nil, storage.ErrNotWithdrawals
+		}
+		return nil, storage.ErrInternalServerError
+	}
+
+	defer rows.Close()
+	withdrawals := make([]storage.Withdraw, 0)
+	for rows.Next() {
+		var order string
+		var sum float32
+		var processedAT time.Time
+		if err = rows.Scan(&order, &sum, &processedAT); err != nil {
+			return nil, storage.ErrInternalServerError
+		}
+
+		withdrawal := storage.Withdraw{Order: order, Sum: sum, ProcessedAT: processedAT.Format(time.RFC3339)}
+		withdrawals = append(withdrawals, withdrawal)
+
+	}
+	return withdrawals, nil
+}
