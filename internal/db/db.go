@@ -162,6 +162,7 @@ func (d *DB) UpdateStatusOrder(OrderAccrual storage.OrderAccrual) error {
 	var userID int
 	sql := "update orders set status=$1, accrual=$2, updated_at = $3 where id=$4 RETURNING user_id;"
 	//_, err = tx.Exec(d.ctx, sql, order.Status, order.Accrual, updateTime, order.ID)
+	//TODO the bug is returning not user_id
 	err = tx.QueryRow(d.ctx, sql, OrderAccrual.Status, OrderAccrual.Accrual, updateTime, OrderAccrual.ID).Scan(&userID)
 
 	if err != nil {
@@ -170,7 +171,7 @@ func (d *DB) UpdateStatusOrder(OrderAccrual storage.OrderAccrual) error {
 	}
 	if strings.ToUpper(OrderAccrual.Status) == "PROCESSED" {
 		sql = "update users set balance=balance+$1, updated_at = $2 where id=$3;"
-		_, err = tx.Exec(d.ctx, sql, OrderAccrual.Accrual, updateTime, OrderAccrual.ID)
+		_, err = tx.Exec(d.ctx, sql, OrderAccrual.Accrual, updateTime, userID)
 		if err != nil {
 			log.Error().Err(err).Msg("")
 			return storage.ErrInternalServerError
