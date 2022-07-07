@@ -211,3 +211,37 @@ func (s *Server) GetBalance(w http.ResponseWriter, r *http.Request) {
 		log.Error().Err(err).Msg("")
 	}
 }
+
+func (s *Server) PostWithdraw(w http.ResponseWriter, r *http.Request) {
+	_, claims, _ := jwtauth.FromContext(r.Context())
+	userID, err := strconv.Atoi(fmt.Sprintf("%v", claims["user_id"]))
+	if err != nil {
+		log.Error().Err(err)
+		helpers.ErrJSONResponse(err.Error(), http.StatusInternalServerError, w)
+		return
+	}
+	var withdraw storage.Withdraw
+	err = json.NewDecoder(r.Body).Decode(&withdraw)
+	if err != nil {
+		log.Error().Err(err)
+		helpers.ErrJSONResponse(err.Error(), http.StatusInternalServerError, w)
+		return
+	}
+	login := fmt.Sprintf("%v", claims["login"])
+	check := helpers.Valid(withdraw.Order)
+	if !check {
+		log.Debug().Msgf("User %s tried to load not valid order %s", login, withdraw.Order)
+		msg := fmt.Sprintf("Order %s is not valid", withdraw.Order)
+		helpers.ErrJSONResponse(msg, http.StatusUnprocessableEntity, w)
+		return
+	}
+	err = s.storage.PostWithDraw(userID, withdraw.Order, withdraw.Sum)
+
+	if err != nil {
+		log.Error().Err(err).Msg("")
+		status, msg := storage.StorageErrToStatus(err)
+		helpers.ErrJSONResponse(msg, status, w)
+		return
+	}
+
+}

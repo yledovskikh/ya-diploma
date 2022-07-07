@@ -77,10 +77,10 @@ func (d *DB) PingDB() error {
 func dbMigrate(d *pgxpool.Pool, ctx context.Context) error {
 	execSQL := []string{
 		"CREATE SEQUENCE IF NOT EXISTS users_serial START 1",
-		//"CREATE SEQUENCE IF NOT EXISTS order_serial START 1",
+		"CREATE SEQUENCE IF NOT EXISTS withdrawals_serial START 1",
 		"CREATE TABLE IF NOT EXISTS users(id integer PRIMARY KEY DEFAULT nextval('users_serial'), login varchar(255) NOT NULL, password varchar(255) NOT NULL, balance real not null, withdrawn real not null, create_at timestamp , updated_at timestamp ,  CONSTRAINT users_unique UNIQUE (login))",
 		"CREATE TABLE IF NOT EXISTS orders(id varchar(255) not null primary key, user_id integer not null, status varchar(19) not null, accrual real not null, created_at timestamp not null, updated_at timestamp not null);",
-		//"CREATE TABLE IF NOT EXISTS balance(user_id integer  not null primary key, balance real not null, withdrawn real not null, created_at timestamp not null, updated_at timestamp not null);",
+		"CREATE TABLE IF NOT EXISTS withdrawals(id integer PRIMARY KEY DEFAULT nextval('withdrawals_serial'), user_id integer not null, order varchar(255) not null, sum real not null, created_at timestamp not null, updated_at timestamp not null);",
 	}
 
 	for _, sql := range execSQL {
@@ -154,8 +154,6 @@ func (d *DB) UpdateStatusOrder(OrderAccrual storage.OrderAccrual) error {
 	if err != nil {
 		return err
 	}
-	// Rollback is safe to call even if the tx is already closed, so if
-	// the tx commits successfully, this is a no-op
 	defer tx.Rollback(d.ctx)
 
 	updateTime := time.Now()
@@ -287,4 +285,42 @@ func (d *DB) GetBalance(userID int) (storage.Balance, error) {
 	}
 
 	return b, nil
+}
+
+func (d *DB) PostWithDraw(userID int, order string, sum float32) error {
+	tx, err := d.Pool.Begin(d.ctx)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback(d.ctx)
+
+	sql := "select balance from users where id=$1 for update;"
+	var balance float32
+	err = d.Pool.QueryRow(d.ctx, sql, userID).Scan(&balance)
+	if err != nil {
+		log.Error().Err(err).Msg("")
+		return storage.ErrInternalServerError
+	}
+
+	if balance < sum {
+		return storage.ErrNotEnoughFounds
+	}
+	updateTime := time.Now()
+	sql = "update users set balance=balance-$1, withdrawn=withdrawn+1,  updated_at = $2 where id=$3;"
+	_, err = tx.Exec(d.ctx, sql, sum, updateTime, userID)
+	if err != nil {
+		log.Error().Err(err).Msg("")
+		return storage.ErrInternalServerError
+	}
+	sql = "INSERT INTO withdrawals (user_id, order, sum, created_at, updated_at) VALUES($1,$2,$3,$4,$4);"
+	_, err = tx.Exec(d.ctx, sql, userID, order, sum, updateTime)
+	if err != nil {
+		log.Error().Err(err).Msg("")
+		return storage.ErrInternalServerError
+	}
+	err = tx.Commit(d.ctx)
+	if err != nil {
+		return err
+	}
+	return nil
 }

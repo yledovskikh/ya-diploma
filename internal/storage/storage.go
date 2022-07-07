@@ -14,6 +14,7 @@ type Storage interface {
 	GetBalance(int) (Balance, error)
 	GetProcOrders() (map[string]string, error)
 	UpdateStatusOrder(OrderAccrual) error
+	PostWithDraw(int, string, float32) error
 	PingDB() error
 	Close()
 }
@@ -25,6 +26,7 @@ var (
 	ErrLoginAlreadyExist      = errors.New(`HTTP 409 Login Already Exists`)
 	ErrOrderLoadedAnotherUser = errors.New(`HTTP 409 The Order Has Already Been Uploaded By Another User`)
 	ErrUserAlreadyLoadedOrder = errors.New(`HTTP 200 You Have Already Uploaded The Order`)
+	ErrNotEnoughFounds        = errors.New(`HTTP 402 Not Enough Founds`)
 )
 
 type User struct {
@@ -33,6 +35,11 @@ type User struct {
 	Password string
 	CreateAt time.Time
 	UpdateAt time.Time
+}
+
+type Withdraw struct {
+	Sum   float32 `json:"sum"`
+	Order string  `json:"order"`
 }
 
 type Balance struct {
