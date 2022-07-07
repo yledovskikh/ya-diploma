@@ -148,7 +148,7 @@ func (d *DB) CheckUser(u storage.User) (int, error) {
 	return userID, nil
 }
 
-func (d *DB) UpdateStatusOrder(order storage.Order) error {
+func (d *DB) UpdateStatusOrder(OrderAccrual storage.Order) error {
 
 	tx, err := d.Pool.Begin(d.ctx)
 	if err != nil {
@@ -162,15 +162,15 @@ func (d *DB) UpdateStatusOrder(order storage.Order) error {
 	var userID int
 	sql := "update orders set status=$1, accrual=$2, updated_at = $3 where id=$4 RETURNING user_id;"
 	//_, err = tx.Exec(d.ctx, sql, order.Status, order.Accrual, updateTime, order.ID)
-	err = tx.QueryRow(d.ctx, sql, order.Status, order.Accrual, updateTime, order.ID).Scan(&userID)
+	err = tx.QueryRow(d.ctx, sql, OrderAccrual.Status, OrderAccrual.Accrual, updateTime, OrderAccrual.ID).Scan(&userID)
 
 	if err != nil {
 		log.Error().Err(err).Msg("")
 		return storage.ErrInternalServerError
 	}
-	if strings.ToUpper(order.Status) == "PROCESSED" {
+	if strings.ToUpper(OrderAccrual.Status) == "PROCESSED" {
 		sql = "update users set balance=balance+$1 updated_at = $2 where id=$3;"
-		_, err = tx.Exec(d.ctx, sql, order.Accrual, updateTime, order.ID)
+		_, err = tx.Exec(d.ctx, sql, OrderAccrual.Accrual, updateTime, OrderAccrual.ID)
 		if err != nil {
 			log.Error().Err(err).Msg("")
 			return storage.ErrInternalServerError

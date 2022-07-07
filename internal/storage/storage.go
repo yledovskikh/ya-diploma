@@ -13,7 +13,7 @@ type Storage interface {
 	GetOrders(int) ([]Order, error)
 	GetBalance(int) (Balance, error)
 	GetProcOrders() (map[string]string, error)
-	UpdateStatusOrder(Order) error
+	UpdateStatusOrder(OrderAccrual) error
 	PingDB() error
 	Close()
 }
@@ -52,12 +52,12 @@ type Order struct {
 	CreateAt string  `json:"uploaded_at"`
 }
 
-//type OrderAccrual struct {
-//	ID       string  `json:"order"`
-//	Status   string  `json:"status"`
-//	Accrual  float32 `json:"accrual"`
-//	CreateAt string  `json:"uploaded_at"`
-//}
+type OrderAccrual struct {
+	ID       string  `json:"order"`
+	Status   string  `json:"status"`
+	Accrual  float32 `json:"accrual"`
+	CreateAt string  `json:"uploaded_at"`
+}
 
 type JSONResponse struct {
 	Message string

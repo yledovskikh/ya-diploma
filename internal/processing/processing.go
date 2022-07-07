@@ -74,7 +74,7 @@ func (p *Process) checkStatusOrder(o string) int {
 	}
 
 	if resp.StatusCode == http.StatusOK {
-		var order storage.Order
+		var order storage.OrderAccrual
 		err = json.NewDecoder(resp.Body).Decode(&order)
 		if err != nil {
 			log.Error().Err(err).Msg("")
