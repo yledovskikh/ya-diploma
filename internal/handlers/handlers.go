@@ -199,7 +199,7 @@ func (s *Server) GetBalance(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	balance, err := s.storage.GeBalance(userID)
+	balance, err := s.storage.GetBalance(userID)
 	if err != nil {
 		log.Error().Err(err).Msg("")
 		http.Error(w, err.Error(), http.StatusInternalServerError)
