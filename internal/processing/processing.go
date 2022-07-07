@@ -54,7 +54,7 @@ func (p *Process) procOrders() {
 func (p *Process) checkStatusOrder(o string) int {
 
 	//TODO get endpoint accrual system from config
-	url := "http://" + p.accrualSystemAddress + "/api/orders/" + o
+	url := p.accrualSystemAddress + "/api/orders/" + o
 
 	log.Debug().Msgf("URL accrual server - %s", url)
 	resp, err := http.Get(url)
