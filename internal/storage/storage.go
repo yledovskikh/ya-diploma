@@ -36,8 +36,8 @@ type User struct {
 }
 
 type Balance struct {
-	Balance   float32
-	Withdrawn float32
+	Current   float32 `json:"current"`
+	Withdrawn float32 `json:"withdrawn"`
 }
 
 //            "number": "9278923470",

@@ -162,7 +162,6 @@ func (d *DB) UpdateStatusOrder(OrderAccrual storage.OrderAccrual) error {
 	var userID int
 	sql := "update orders set status=$1, accrual=$2, updated_at = $3 where id=$4 RETURNING user_id;"
 	//_, err = tx.Exec(d.ctx, sql, order.Status, order.Accrual, updateTime, order.ID)
-	//TODO the bug is returning not user_id
 	err = tx.QueryRow(d.ctx, sql, OrderAccrual.Status, OrderAccrual.Accrual, updateTime, OrderAccrual.ID).Scan(&userID)
 
 	if err != nil {
@@ -281,7 +280,7 @@ func (d *DB) GetBalance(userID int) (storage.Balance, error) {
 
 	sql := "select balance,withdrawn from users where id=$1;"
 	b := storage.Balance{}
-	err := d.Pool.QueryRow(d.ctx, sql, userID).Scan(&b.Balance, &b.Withdrawn)
+	err := d.Pool.QueryRow(d.ctx, sql, userID).Scan(&b.Current, &b.Withdrawn)
 	if err != nil {
 		log.Error().Err(err).Msg("")
 		return b, storage.ErrInternalServerError
