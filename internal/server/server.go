@@ -61,12 +61,9 @@ func Exec(ctx context.Context, wg *sync.WaitGroup) {
 
 	// Service
 	r := chi.NewRouter()
-	//r.Use(middleware.RequestID)
-	//r.Use(middleware.RealIP)
 	r.Use(httplog.RequestLogger(logger))
 	r.Use(middleware.Recoverer)
-	//r.Use(middleware.Heartbeat("/ping"))
-
+	//r.Use(middleware.Compress)
 	// Protected routes
 	r.Group(func(r chi.Router) {
 		// Seek, verify and validate JWT tokens
@@ -74,7 +71,7 @@ func Exec(ctx context.Context, wg *sync.WaitGroup) {
 		r.Use(jwtauth.Authenticator)
 		r.Post("/api/user/orders", h.PostOrders)
 		r.Get("/api/user/orders", h.GetOrders)
-		//r.Get("/balance", balance.GetBalance)
+		r.Get("/api/user/balance", h.GetBalance)
 	})
 
 	r.Group(func(r chi.Router) {

@@ -190,3 +190,24 @@ func (s *Server) GetOrders(w http.ResponseWriter, r *http.Request) {
 	}
 
 }
+
+func (s *Server) GetBalance(w http.ResponseWriter, r *http.Request) {
+	_, claims, _ := jwtauth.FromContext(r.Context())
+	userID, err := strconv.Atoi(fmt.Sprintf("%v", claims["user_id"]))
+	if err != nil {
+		log.Error().Err(err).Msg("")
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	balance, err := s.storage.GeBalance(userID)
+	if err != nil {
+		log.Error().Err(err).Msg("")
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	w.Header().Set("content-type", "application/json")
+	err = json.NewEncoder(w).Encode(balance)
+	if err != nil {
+		log.Error().Err(err).Msg("")
+	}
+}

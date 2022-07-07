@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 
 	"golang.org/x/crypto/bcrypt"
@@ -77,8 +78,9 @@ func dbMigrate(d *pgxpool.Pool, ctx context.Context) error {
 	execSQL := []string{
 		"CREATE SEQUENCE IF NOT EXISTS users_serial START 1",
 		//"CREATE SEQUENCE IF NOT EXISTS order_serial START 1",
-		"CREATE TABLE IF NOT EXISTS users(id integer PRIMARY KEY DEFAULT nextval('users_serial'), login varchar(255) NOT NULL, password varchar(255) NOT NULL, create_at timestamp , update_at timestamp ,  CONSTRAINT users_unique UNIQUE (login))",
+		"CREATE TABLE IF NOT EXISTS users(id integer PRIMARY KEY DEFAULT nextval('users_serial'), login varchar(255) NOT NULL, password varchar(255) NOT NULL, balance real not null, withdrawn real not null, create_at timestamp , update_at timestamp ,  CONSTRAINT users_unique UNIQUE (login))",
 		"CREATE TABLE IF NOT EXISTS orders(id varchar(255) not null primary key, user_id integer not null, status varchar(19) not null, accrual real not null, created_at timestamp not null, updated_at timestamp not null);",
+		//"CREATE TABLE IF NOT EXISTS balance(user_id integer  not null primary key, balance real not null, withdrawn real not null, created_at timestamp not null, updated_at timestamp not null);",
 	}
 
 	for _, sql := range execSQL {
@@ -92,20 +94,12 @@ func dbMigrate(d *pgxpool.Pool, ctx context.Context) error {
 }
 
 func (d *DB) NewUser(u storage.User) (int, error) {
-	//tx, err := d.Pool.Begin(d.ctx)
-	//if err != nil {
-	//	return err
-	//}
-	sql := "insert into users (login, password, create_at,update_at) values ($1,$2,$3,$4) returning id;"
-
-	// Rollback is safe to call even if the tx is already closed, so if
-	// the tx commits successfully, this is a no-op
+	sql := "insert into users (login, password,balance,withdrawn, create_at,update_at) values ($1,$2,0,0,$3,$4) returning id;"
 	hp, err := HashPassword(u.Password)
 	if err != nil {
 		log.Error().Err(err).Msg("")
 		return 0, storage.ErrInternalServerError
 	}
-	//defer tx.Rollback(d.ctx)
 	instTime := time.Now()
 	var userID int
 	err = d.Pool.QueryRow(d.ctx, sql, u.Login, hp, instTime, instTime).Scan(&userID)
@@ -154,16 +148,41 @@ func (d *DB) CheckUser(u storage.User) (int, error) {
 	return userID, nil
 }
 
-func (d *DB) UpdateStatusOrder(order storage.OrderAccrual) error {
+func (d *DB) UpdateStatusOrder(order storage.Order) error {
 
-	instTime := time.Now()
-	sql := "update orders set status=$1, accrual=$2, updated_at = $3 where id=$4;"
-	_, err := d.Pool.Exec(d.ctx, sql, order.Status, order.Accrual, instTime, order.ID)
+	tx, err := d.Pool.Begin(d.ctx)
+	if err != nil {
+		return err
+	}
+	// Rollback is safe to call even if the tx is already closed, so if
+	// the tx commits successfully, this is a no-op
+	defer tx.Rollback(d.ctx)
+
+	updateTime := time.Now()
+	var userID int
+	sql := "update orders set status=$1, accrual=$2, updated_at = $3 where id=$4 RETURNING user_id;"
+	//_, err = tx.Exec(d.ctx, sql, order.Status, order.Accrual, updateTime, order.ID)
+	err = tx.QueryRow(d.ctx, sql, order.Status, order.Accrual, updateTime, order.ID).Scan(&userID)
+
 	if err != nil {
 		log.Error().Err(err).Msg("")
 		return storage.ErrInternalServerError
 	}
+	if strings.ToUpper(order.Status) == "PROCESSED" {
+		sql = "update users set balance=balance+$1 updated_at = $2 where id=$3;"
+		_, err = tx.Exec(d.ctx, sql, order.Accrual, updateTime, order.ID)
+		if err != nil {
+			log.Error().Err(err).Msg("")
+			return storage.ErrInternalServerError
+		}
+
+	}
+	err = tx.Commit(d.ctx)
+	if err != nil {
+		return err
+	}
 	return nil
+
 }
 
 func (d *DB) SetOrder(userID int, orderNumber string) error {
@@ -255,4 +274,17 @@ func (d *DB) GetProcOrders() (map[string]string, error) {
 	}
 
 	return orders, nil
+}
+
+func (d *DB) GetBalance(userID int) (storage.Balance, error) {
+
+	sql := "select balance,withdrawn from users where id=$1;"
+	b := storage.Balance{}
+	err := d.Pool.QueryRow(d.ctx, sql, userID).Scan(&b.Balance, &b.Withdrawn)
+	if err != nil {
+		log.Error().Err(err).Msg("")
+		return b, storage.ErrInternalServerError
+	}
+
+	return b, nil
 }

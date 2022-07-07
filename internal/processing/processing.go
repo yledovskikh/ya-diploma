@@ -19,9 +19,10 @@ type Process struct {
 
 func Exec(s storage.Storage, ctx context.Context, wg *sync.WaitGroup, accrualSystemAddress string) {
 	defer wg.Done()
-	//TODO изучить вопрос и возможно нужно что-то изменить с каналом
-	c := make(chan int)
 	p := Process{s, accrualSystemAddress}
+	//t := time.NewTicker()
+	//TODO изучить вопрос, пока делаем костыль
+	c := make(chan int)
 	close(c)
 	for {
 		select {
@@ -56,7 +57,7 @@ func (p *Process) checkStatusOrder(o string) int {
 	//TODO get endpoint accrual system from config
 	url := p.accrualSystemAddress + "/api/orders/" + o
 
-	log.Debug().Msgf("URL accrual server - %s", url)
+	//log.Debug().Msgf("URL accrual server - %s", url)
 	resp, err := http.Get(url)
 	log.Debug().Msgf("http get %s", url)
 	if err != nil {
@@ -73,7 +74,7 @@ func (p *Process) checkStatusOrder(o string) int {
 	}
 
 	if resp.StatusCode == http.StatusOK {
-		var order storage.OrderAccrual
+		var order storage.Order
 		err = json.NewDecoder(resp.Body).Decode(&order)
 		if err != nil {
 			log.Error().Err(err).Msg("")
