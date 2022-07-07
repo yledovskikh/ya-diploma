@@ -80,7 +80,7 @@ func dbMigrate(d *pgxpool.Pool, ctx context.Context) error {
 		"CREATE SEQUENCE IF NOT EXISTS withdrawals_serial START 1",
 		"CREATE TABLE IF NOT EXISTS users(id integer PRIMARY KEY DEFAULT nextval('users_serial'), login varchar(255) NOT NULL, password varchar(255) NOT NULL, balance real not null, withdrawn real not null, create_at timestamp , updated_at timestamp ,  CONSTRAINT users_unique UNIQUE (login))",
 		"CREATE TABLE IF NOT EXISTS orders(id varchar(255) not null primary key, user_id integer not null, status varchar(19) not null, accrual real not null, created_at timestamp not null, updated_at timestamp not null);",
-		"CREATE TABLE IF NOT EXISTS withdrawals(id integer PRIMARY KEY DEFAULT nextval('withdrawals_serial'), user_id integer not null, order varchar(255) not null, sum real not null, created_at timestamp not null, updated_at timestamp not null);",
+		"CREATE TABLE IF NOT EXISTS withdrawals(id integer PRIMARY KEY DEFAULT nextval('withdrawals_serial'), user_id integer not null, order_number varchar(255) not null, amount real not null, created_at timestamp not null, updated_at timestamp not null);",
 	}
 
 	for _, sql := range execSQL {
@@ -312,7 +312,7 @@ func (d *DB) PostWithDraw(userID int, order string, sum float32) error {
 		log.Error().Err(err).Msg("")
 		return storage.ErrInternalServerError
 	}
-	sql = "INSERT INTO withdrawals (user_id, order, sum, created_at, updated_at) VALUES($1,$2,$3,$4,$4);"
+	sql = "INSERT INTO withdrawals (user_id, order_number, amount, created_at, updated_at) VALUES($1,$2,$3,$4,$4);"
 	_, err = tx.Exec(d.ctx, sql, userID, order, sum, updateTime)
 	if err != nil {
 		log.Error().Err(err).Msg("")
