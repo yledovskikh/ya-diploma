@@ -148,7 +148,7 @@ func (d *DB) CheckUser(u storage.User) (int, error) {
 	return userID, nil
 }
 
-func (d *DB) UpdateStatusOrder(OrderAccrual storage.Order) error {
+func (d *DB) UpdateStatusOrder(OrderAccrual storage.OrderAccrual) error {
 
 	tx, err := d.Pool.Begin(d.ctx)
 	if err != nil {
