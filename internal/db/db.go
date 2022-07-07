@@ -306,7 +306,7 @@ func (d *DB) PostWithDraw(userID int, order string, sum float32) error {
 		return storage.ErrNotEnoughFounds
 	}
 	updateTime := time.Now()
-	sql = "update users set balance=balance-$1, withdrawn=withdrawn+1,  updated_at = $2 where id=$3;"
+	sql = "update users set balance=balance-$1, withdrawn=withdrawn+$1,  updated_at = $2 where id=$3;"
 	_, err = tx.Exec(d.ctx, sql, sum, updateTime, userID)
 	if err != nil {
 		log.Error().Err(err).Msg("")
