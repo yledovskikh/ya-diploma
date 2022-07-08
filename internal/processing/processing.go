@@ -29,7 +29,7 @@ func Exec(s storage.Storage, ctx context.Context, wg *sync.WaitGroup, accrualSys
 			return
 		case <-ch:
 			log.Debug().Msg("processing new part of orders")
-			p.procOrders(ch)
+			go p.procOrders(ch)
 		}
 	}
 }
