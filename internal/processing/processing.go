@@ -21,7 +21,7 @@ func Exec(s storage.Storage, ctx context.Context, wg *sync.WaitGroup, accrualSys
 	defer wg.Done()
 	p := Process{s, accrualSystemAddress}
 	ch := make(chan int)
-	p.procOrders(ch)
+	go p.procOrders(ch)
 	for {
 		select {
 		case <-ctx.Done():
