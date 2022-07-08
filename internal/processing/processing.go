@@ -20,23 +20,21 @@ type Process struct {
 func Exec(s storage.Storage, ctx context.Context, wg *sync.WaitGroup, accrualSystemAddress string) {
 	defer wg.Done()
 	p := Process{s, accrualSystemAddress}
-	//t := time.NewTicker()
-	//TODO изучить вопрос, пока делаем костыль
-	c := make(chan int)
-	close(c)
+	ch := make(chan int)
+	p.procOrders(ch)
 	for {
 		select {
 		case <-ctx.Done():
 			log.Info().Msg("exit from processing")
 			return
-		case <-c:
+		case <-ch:
 			log.Debug().Msg("processing new part of orders")
-			p.procOrders()
+			p.procOrders(ch)
 		}
 	}
 }
 
-func (p *Process) procOrders() {
+func (p *Process) procOrders(ch chan int) {
 	orders, err := p.storage.GetProcOrders()
 	if err != nil {
 		log.Error().Err(err).Msg("")
@@ -44,12 +42,17 @@ func (p *Process) procOrders() {
 	for order, status := range orders {
 		fmt.Println(order, status)
 		rs := p.checkStatusOrder(order)
+		//обрабатываем ответ http.StatusTooManyRequests
+		//тормозим проверку статуса заказов в системе лояльности на 2сек.
+		//текущий заказ мы пропускаем, но он будет обработан при следующей выборке p.storage.GetProcOrders()
 		if rs == http.StatusTooManyRequests {
 			time.Sleep(2 * time.Second)
 		}
 	}
+	//Делает паузу на 5сек, прежде чем повторно будет запущена procOrders из цикла for{}
 	time.Sleep(5 * time.Second)
-	//c <- 0
+	ch <- 1
+
 }
 
 func (p *Process) checkStatusOrder(o string) int {
