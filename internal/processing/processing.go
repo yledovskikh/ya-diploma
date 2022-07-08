@@ -21,20 +21,25 @@ func Exec(s storage.Storage, ctx context.Context, wg *sync.WaitGroup, accrualSys
 	defer wg.Done()
 	p := Process{s, accrualSystemAddress}
 	ch := make(chan int)
-	go p.procOrders(ch)
+	var wgp sync.WaitGroup
+	wgp.Add(1)
+	go p.procOrders(ch, &wgp)
 	for {
 		select {
 		case <-ctx.Done():
 			log.Info().Msg("exit from processing")
+			//ожидаем когда полностью доработает текущий цикл procOrders
+			wgp.Wait()
 			return
 		case <-ch:
 			log.Debug().Msg("processing new part of orders")
-			go p.procOrders(ch)
+			wgp.Add(1)
+			go p.procOrders(ch, &wgp)
 		}
 	}
 }
 
-func (p *Process) procOrders(ch chan int) {
+func (p *Process) procOrders(ch chan int, wgp *sync.WaitGroup) {
 	orders, err := p.storage.GetProcOrders()
 	if err != nil {
 		log.Error().Err(err).Msg("")
@@ -49,8 +54,9 @@ func (p *Process) procOrders(ch chan int) {
 			time.Sleep(2 * time.Second)
 		}
 	}
-	//Делает паузу на 5сек, прежде чем повторно будет запущена procOrders из цикла for{}
+	//Делает паузу на 5сек, прежде чем повторно будет запущена procOrders из цикла for{}, таким образом мы запускаем procOrders в цикле последовательно
 	time.Sleep(5 * time.Second)
+	wgp.Done()
 	ch <- 1
 
 }
